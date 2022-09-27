@@ -1,0 +1,829 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-thrift
+  labels:
+    app: nginx-thrift
+    service: nginx-thrift
+spec:
+  ports:
+  - port: 8080
+    name: http
+  selector:
+    app: nginx-thrift
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nginx-front
+  labels:
+    account: nginx-thrift
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-thrift
+  labels:
+    app: nginx-thrift
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-thrift
+  template:
+    metadata:
+      labels:
+        app: nginx-thrift
+    spec:
+      serviceAccountName: nginx-front
+      containers:
+        - name: nginx-thrift
+          image: yg397/openresty-thrift:xenial
+          ports:
+            - containerPort: 8080
+          resources: {}
+          volumeMounts:
+            - mountPath: /usr/local/openresty/nginx/lua-scripts
+              name: nginx-thrift-vol-0
+            - mountPath: /usr/local/openresty/nginx/pages
+              name: nginx-thrift-vol-1
+            - mountPath: /usr/local/openresty/nginx/conf/nginx.conf
+              name: nginx-thrift-vol-2
+            - mountPath: /usr/local/openresty/nginx/jaeger-config.json
+              name: nginx-thrift-vol-3
+            - mountPath: /gen-lua
+              name: nginx-thrift-vol-4
+            - mountPath: /usr/local/openresty/lualib/thrift
+              name: nginx-thrift-vol-5
+      hostname: nginx-thrift
+      volumes:
+        - name: nginx-thrift-vol-0
+          hostPath:
+            path: ./nginx-web-server/lua-scripts
+            type: Directory
+        - name: nginx-thrift-vol-1
+          hostPath:
+            path: ./nginx-web-server/pages
+            type: Directory
+        - name: nginx-thrift-vol-2
+          hostPath:
+            path: ./nginx-web-server/conf/nginx.conf
+            type: File
+        - name: nginx-thrift-vol-3
+          hostPath:
+            path: ./nginx-web-server/jaeger-config.json
+            type: File
+        - name: nginx-thrift-vol-4
+          hostPath:
+            path: ./gen-lua:/gen-lua
+            type: Directory
+        - name: nginx-thrift-vol-5
+          hostPath:
+            path: ./docker/openresty-thrift/lua-thrift
+            type: Directory
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: social-graph-service
+  name: social-graph-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: social-graph-service
+  template:
+    metadata:
+      labels:
+        app: social-graph-service
+    spec:
+      containers:
+        - command:
+            - SocialGraphService
+          image: deathstarbench/social-network-microservices:latest
+          name: social-graph-service
+          resources: {}
+          volumeMounts:
+            - mountPath: /social-network-microservices/config
+              name: social-graph-service-vol-0
+      hostname: social-graph-service
+      volumes:
+        - name: social-graph-service-vol-0
+          hostPath:
+            path: ./config
+            type: Directory
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: social-graph-mongodb
+  name: social-graph-mongodb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: social-graph-mongodb
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: social-graph-mongodb
+    spec:
+      containers:
+        - image: mongo:4.4.6
+          name: social-graph-mongodb
+          resources: {}
+      hostname: social-graph-mongodb
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: social-graph-redis
+  name: social-graph-redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: social-graph-redis
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: social-graph-redis
+    spec:
+      containers:
+        - image: redis
+          name: social-graph-redis
+          resources: {}
+      hostname: social-graph-redis
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: home-timeline-service
+  name: home-timeline-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: home-timeline-service
+  template:
+    metadata:
+      labels:
+        app: home-timeline-service
+    spec:
+      containers:
+        - command:
+            - HomeTimelineService
+          image: deathstarbench/social-network-microservices:latest
+          name: home-timeline-service
+          resources: {}
+          volumeMounts:
+            - mountPath: /social-network-microservices/config
+              name: home-timeline-service-vol-0
+      hostname: home-timeline-service
+      volumes:
+        - name: home-timeline-service-vol-0
+          hostPath:
+            path: ./config
+            type: Directory
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: home-timeline-redis
+  name: home-timeline-redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: home-timeline-redis
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: home-timeline-redis
+    spec:
+      containers:
+        - image: redis
+          name: home-timeline-redis
+          resources: {}
+      hostname: home-timeline-redis
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: compose-post-service
+  name: compose-post-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: compose-post-service
+  template:
+    metadata:
+      labels:
+        app: compose-post-service
+    spec:
+      containers:
+        - command:
+            - ComposePostService
+          image: deathstarbench/social-network-microservices:latest
+          name: compose-post-service
+          resources: {}
+          volumeMounts:
+            - mountPath: /social-network-microservices/config
+              name: compose-post-service-vol-0
+      hostname: compose-post-service
+      volumes:
+        - name: compose-post-service-vol-0
+          hostPath:
+            path: ./config
+            type: Directory
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: post-storage-service
+  name: post-storage-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: post-storage-service
+  template:
+    metadata:
+      labels:
+        app: post-storage-service
+    spec:
+      containers:
+        - command:
+            - PostStorageService
+          image: deathstarbench/social-network-microservices:latest
+          name: post-storage-service
+          ports:
+            - containerPort: 9090
+          resources: {}
+          volumeMounts:
+            - mountPath: /social-network-microservices/config
+              name: post-storage-service-vol-0
+      hostname: post-storage-service
+      volumes:
+        - name: post-storage-service-vol-0
+          hostPath:
+            path: ./config
+            type: Directory
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: post-storage-memcached
+  name: post-storage-memcached
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: post-storage-memcached
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: post-storage-memcached
+    spec:
+      containers:
+        - image: memcached
+          name: post-storage-memcached
+          resources: {}
+      hostname: post-storage-memcached
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: post-storage-mongodb
+  name: post-storage-mongodb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: post-storage-mongodb
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: post-storage-mongodb
+    spec:
+      containers:
+        - image: mongo:4.4.6
+          name: post-storage-mongodb
+          resources: {}
+      hostname: post-storage-mongodb
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: user-timeline-service
+  name: user-timeline-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-timeline-service
+  template:
+    metadata:
+      labels:
+        app: user-timeline-service
+    spec:
+      containers:
+        - command:
+            - UserTimelineService
+          image: deathstarbench/social-network-microservices:latest
+          name: user-timeline-service
+          resources: {}
+          volumeMounts:
+            - mountPath: /social-network-microservices/config
+              name: user-timeline-service-vol-0
+      hostname: user-timeline-service
+      volumes:
+        - name: user-timeline-service-vol-0
+          hostPath:
+            path: ./config
+            type: Directory
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: user-timeline-redis
+  name: user-timeline-redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-timeline-redis
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: user-timeline-redis
+    spec:
+      containers:
+        - image: redis
+          name: user-timeline-redis
+          resources: {}
+      hostname: user-timeline-redis
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: user-timeline-mongodb
+  name: user-timeline-mongodb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-timeline-mongodb
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: user-timeline-mongodb
+    spec:
+      containers:
+        - image: mongo:4.4.6
+          name: user-timeline-mongodb
+          resources: {}
+      hostname: user-timeline-mongodb
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  
+  labels:
+    app: url-shorten-service
+  name: url-shorten-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: url-shorten-service
+  template:
+    metadata:
+      
+      labels:
+        app: url-shorten-service
+    spec:
+      containers:
+        - command:
+            - UrlShortenService
+          image: deathstarbench/social-network-microservices:latest
+          name: url-shorten-service
+          resources: {}
+          volumeMounts:
+            - mountPath: /social-network-microservices/config
+              name: url-shorten-service-vol-0
+      hostname: url-shorten-service
+      volumes:
+        - name: url-shorten-service-vol-0
+          hostPath:
+            path: ./config
+            type: Directory
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  
+  labels:
+    app: user-memcached
+  name: user-memcached
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-memcached
+  strategy: {}
+  template:
+    metadata:
+      
+      labels:
+        app: user-memcached
+    spec:
+      containers:
+        - image: memcached
+          name: user-memcached
+          resources: {}
+      hostname: user-memcached
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  
+  labels:
+    app: url-shorten-mongodb
+  name: url-shorten-mongodb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: url-shorten-mongodb
+  strategy: {}
+  template:
+    metadata:
+      
+      labels:
+        app: url-shorten-mongodb
+    spec:
+      containers:
+        - image: mongo:4.4.6
+          name: url-shorten-mongodb
+          resources: {}
+      hostname: url-shorten-mongodb
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  
+  labels:
+    app: user-service
+  name: user-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      
+      labels:
+        app: user-service
+    spec:
+      containers:
+        - command:
+            - UserService
+          image: deathstarbench/social-network-microservices:latest
+          name: user-service
+          resources: {}
+          volumeMounts:
+            - mountPath: /social-network-microservices/config
+              name: user-service-vol-0
+      hostname: user-service
+      volumes:
+        - name: user-service-vol-0
+          hostPath:
+            path: ./config
+            type: Directory
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  
+  labels:
+    app: user-mongodb
+  name: user-mongodb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-mongodb
+  strategy: {}
+  template:
+    metadata:
+      
+      labels:
+        app: user-mongodb
+    spec:
+      containers:
+        - image: mongo:4.4.6
+          name: user-mongodb
+          resources: {}
+      hostname: user-mongodb
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  
+  labels:
+    app: media-service
+  name: media-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: media-service
+  template:
+    metadata:
+      
+      labels:
+        app: media-service
+    spec:
+      containers:
+        - command:
+            - MediaService
+          image: deathstarbench/social-network-microservices:latest
+          name: media-service
+          resources: {}
+          volumeMounts:
+            - mountPath: /social-network-microservices/config
+              name: media-service-vol-0
+      hostname: media-service
+      volumes:
+        - name: media-service-vol-0
+          hostPath:
+            path: ./config
+            type: Directory
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  
+  labels:
+    app: media-memcached
+  name: media-memcached
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: media-memcached
+  strategy: {}
+  template:
+    metadata:
+      
+      labels:
+        app: media-memcached
+    spec:
+      containers:
+        - image: memcached
+          name: media-memcached
+          resources: {}
+      hostname: media-memcached
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  
+  labels:
+    app: media-mongodb
+  name: media-mongodb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: media-mongodb
+  strategy: {}
+  template:
+    metadata:
+      
+      labels:
+        app: media-mongodb
+    spec:
+      containers:
+        - image: mongo:4.4.6
+          name: media-mongodb
+          resources: {}
+      hostname: media-mongodb
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  
+  labels:
+    app: text-service
+  name: text-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: text-service
+  template:
+    metadata:
+      
+      labels:
+        app: text-service
+    spec:
+      containers:
+        - command:
+            - TextService
+          image: deathstarbench/social-network-microservices:latest
+          name: text-service
+          resources: {}
+          volumeMounts:
+            - mountPath: /social-network-microservices/config
+              name: text-service-vol-0
+      hostname: text-service
+      volumes:
+        - name: text-service-vol-0
+          hostPath: ./config
+            path: Directory
+            type:
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  
+  labels:
+    app: unique-id-service
+  name: unique-id-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: unique-id-service
+  template:
+    metadata:
+      
+      labels:
+        app: unique-id-service
+    spec:
+      containers:
+        - command:
+            - UniqueIdService
+          image: deathstarbench/social-network-microservices:latest
+          name: unique-id-service
+          resources: {}
+          volumeMounts:
+            - mountPath: /social-network-microservices/config
+              name: unique-id-service-vol-0
+      hostname: unique-id-service
+      volumes:
+        - name: unique-id-service-vol-0
+          hostPath:
+            path: ./config
+            type: Directory
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  
+  labels:
+    app: user-mention-service
+  name: user-mention-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-mention-service
+  template:
+    metadata:
+      
+      labels:
+        app: user-mention-service
+    spec:
+      containers:
+        - command:
+            - UserMentionService
+          image: deathstarbench/social-network-microservices:latest
+          name: user-mention-service
+          resources: {}
+          volumeMounts:
+            - mountPath: /social-network-microservices/config
+              name: user-mention-service-vol-0
+      hostname: user-mention-service
+      volumes:
+        - name: user-mention-service-vol-0
+          hostPath:
+            path: ./config
+            type: Directory
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  
+  labels:
+    app: home-timeline-service
+  name: home-timeline-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: home-timeline-service
+  template:
+    metadata:
+      
+      labels:
+        app: home-timeline-service
+    spec:
+      containers:
+        - command:
+            - HomeTimelineService
+          image: deathstarbench/social-network-microservices:latest
+          name: home-timeline-service
+          resources: {}
+          volumeMounts:
+            - mountPath: /social-network-microservices/config
+              name: home-timeline-service-vol-0
+      hostname: home-timeline-service
+      volumes:
+        - name: home-timeline-service-vol-0
+          hostPath:
+            path: ./config
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: media-frontend
+  name: media-frontend
+spec:
+  ports:
+    - name: "8081"
+      port: 8081
+      targetPort: 8080
+  selector:
+    app: media-frontend
+status:
+  loadBalancer: {}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: jaeger-agent
+  name: jaeger-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jaeger-agent
+  template:
+    metadata:
+      labels:
+        app: jaeger-agent
+    spec:
+      containers:
+        - env:
+            - name: COLLECTOR_ZIPKIN_HTTP_PORT
+              value: "9411"
+          image: jaegertracing/all-in-one:latest
+          name: jaeger-agent
+          ports:
+            - containerPort: 16686
+          resources: {}
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: jaeger-agent
+  name: jaeger-agent
+spec:
+  ports:
+    - name: "16686"
+      port: 16686
+      targetPort: 16686
+  selector:
+    app: jaeger-agent
+status:
+  loadBalancer: {}
